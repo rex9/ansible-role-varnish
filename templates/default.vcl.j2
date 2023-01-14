@@ -2,6 +2,8 @@
 vcl 4.0;
 {% endif %}
 
+import std;
+
 # This is a basic VCL configuration file for varnish.  See the vcl(7)
 # man page for details on VCL syntax and semantics.
 #
@@ -22,6 +24,13 @@ backend {{ backend }} {
 {% endfor %}
 {% endif %}
 
+acl internal {
+  "localhost";
+	{% for acl_ip in varnish_acl_ip %}
+  "{{ acl_ip }}";
+	{% endfor %}
+}
+
 sub vcl_recv {
 {% if varnish_vhosts is defined %}
   # Varnish vhosts.
@@ -35,4 +44,40 @@ sub vcl_recv {
   }
 {% endfor %}
 {% endif %}
+
+  # Purge
+  if (req.method == "PURGE") {
+    if (!client.ip ~ internal) {
+      return (synth(405, "Not allowed."));
+    }
+    return (purge);
+  }
+
+  # Limit Request Method
+  if (req.method != "GET" && req.method != "HEAD" && req.method != "POST" ) {
+    return (pipe);
+  }
+
+}
+
+sub vcl_backend_response {
+
+  set beresp.grace = {{ varnish_beresp_grace }};
+  set beresp.ttl = {{ varnish_beresp_ttl }};
+
+  if (beresp.status == 404 || beresp.status >= 500) {
+    set beresp.grace = {{ varnish_beresp_error_grace }};
+    set beresp.ttl = {{ varnish_beresp_error_ttl }};
+  }
+
+  if (std.integer(beresp.http.Content-Length, 0) > 1024000 ){
+    std.syslog(9,"cachng stgfile: Filesize: "+std.integer(beresp.http.Content-Length, 0));
+    set beresp.storage_hint = "stgfile";
+#    set beresp.uncacheable = true;
+  } else {
+    std.syslog(9,"caching default: Filesize: "+std.integer(beresp.http.Content-Length, 0));
+    set beresp.storage_hint = "default";
+  }
+
+  return (deliver);
 }

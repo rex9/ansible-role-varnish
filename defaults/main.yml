@@ -17,7 +17,25 @@ varnish_limit_nofile: 131072
 varnish_admin_listen_host: "127.0.0.1"
 varnish_admin_listen_port: "6082"
 
-varnish_storage: "file,/var/lib/varnish/varnish_storage.bin,256M"
+# default_grace : 10s
+varnish_beresp_grace: 1d
+# default_ttl : 120s
+varnish_beresp_ttl: 7d
+varnish_beresp_error_grace: 60s
+varnish_beresp_error_ttl: 60s
+
+varnish_acl_ip:
+  - 192.168.218.0/24
+  - 192.168.219.0/24
+
+varnish_storage_path : "/var/lib/varnish"
+
+varnish_storage:
+  - name: "default"
+    storage: "malloc,1G"
+  - name: "stgfile"
+    storage: "file,{{ varnish_storage_path }}/varnish_storage.bin,256M"
+
 varnish_pidfile: /run/varnishd.pid
 
 varnishd_extra_options: ""

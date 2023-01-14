@@ -18,6 +18,12 @@
     state: directory
     mode: 0755
 
+- name: Ensure Varnish data path exists.
+  file:
+    path: "{{ varnish_storage_path }}"
+    state: directory
+    mode: 0755
+
 - name: Copy Varnish configuration (sysvinit).
   template:
     src: varnish.j2
@@ -74,6 +80,9 @@
     group: root
     mode: 0644
   notify: restart varnish
+
+- name: reload systemd
+  systemd: daemon-reload=true
 
 - name: Ensure Varnish services are started and enabled on startup.
   service:
